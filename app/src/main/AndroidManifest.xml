@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.nunu.camerax">
 
+    <!-- 카메라를 가지고 있는 기기를 대상으로 권한을 가진다(any는 전면이든 후면이든 카메라르 가지고 있는 기기 모두 포함) -->
+    <uses-feature android:name="android.hardware.camera.any" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

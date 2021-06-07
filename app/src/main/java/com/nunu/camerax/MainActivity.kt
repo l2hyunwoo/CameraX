@@ -3,8 +3,13 @@ package com.nunu.camerax
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.nunu.camerax.databinding.ActivityMainBinding
@@ -40,7 +45,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startCamera() {
-        TODO("Not yet implemented")
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+
+        cameraProviderFuture.addListener({
+            // Future니까....
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+
+            val preview = Preview.Builder()
+                .build()
+                // setSurfaceProvider는 어떤 함수인지 찾아봐야겠다
+                .also { it.setSurfaceProvider { binding.previewMain.surfaceProvider } }
+
+            // 일단 후면 카메라 선택해
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            runCatching {
+                // Unbind use cases before rebinding
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+            }.onFailure { Log.e(TAG, "Use case binding failed", it) }
+        }, ContextCompat.getMainExecutor(this))
     }
 
     private fun getOutputDirectory(): File {
@@ -58,6 +82,26 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.checkSelfPermission(
             baseContext, it
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_PERMISSIONS) {
+            if (allPermissionsGranted()) {
+                startCamera()
+            } else {
+                Toast.makeText(
+                    applicationContext,
+                    "Permissions not granted by the user.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                finish()
+            }
+        }
     }
 
     override fun onDestroy() {
