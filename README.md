@@ -70,3 +70,49 @@ SurfaceProvider는 데이터(이미지) 데이터를 받을 준비가 되었다�
         cameraProvider.bindToLifecycle(this, cameraSelector, preview)
     }.onFailure { Log.e(TAG, "Use case binding failed", it) }
 ```
+
+## Implement ImageCapture use case
+
+이제 사진 찍는 것까지 구현을 하려면 ImageCapture 역시 구현해야한다. startCamera에서도 이 use case를 만들어야 사진 찍는 기능을 구현할 수 있기 때문에 ``takePhoto``, ``startCamera`` 두 함수를 모두 건드려야한다.
+
+```kotlin
+    private fun takePhoto() {
+        val imageCapture = imageCapture ?: return
+
+        // 사진 저장 장소
+        val photoFile = File(
+            outputDirectory,
+            SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+                .format(System.currentTimeMillis()) + ".jpg"
+        )
+
+        // outputFile의 Configuration을 담당
+        val outputOptions = ImageCapture
+            .OutputFileOptions
+            .Builder(photoFile)
+            .build()
+
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                // 사진을 찍고 어떻게 저장할 지에 대한 구현부
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    val savedUri = Uri.fromFile(photoFile)
+                    val message = "Photo capture succeeded: $savedUri"
+                    Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, message)
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
+                }
+            }
+        )
+    }
+
+    // startCamera()
+
+    // 이미지 캡쳐하는 use case를 빌더패턴을 통해 구현한다.
+    imageCapture = ImageCapture.Builder().build()
+```
