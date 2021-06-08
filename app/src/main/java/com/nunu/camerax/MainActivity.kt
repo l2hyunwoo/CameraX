@@ -2,18 +2,22 @@ package com.nunu.camerax
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.icu.text.SimpleDateFormat
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.nunu.camerax.databinding.ActivityMainBinding
 import java.io.File
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -34,14 +38,43 @@ class MainActivity : AppCompatActivity() {
         if (allPermissionsGranted()) {
             startCamera()
         } else {
-            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            ActivityCompat
+                .requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
 
         binding.btnMainCapture.setOnClickListener { takePhoto() }
     }
 
     private fun takePhoto() {
-        TODO("Not yet implemented")
+        val imageCapture = imageCapture ?: return
+
+        val photoFile = File(
+            outputDirectory,
+            SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+                .format(System.currentTimeMillis()) + ".jpg"
+        )
+
+        val outputOptions = ImageCapture
+            .OutputFileOptions
+            .Builder(photoFile)
+            .build()
+
+        imageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    val savedUri = Uri.fromFile(photoFile)
+                    val message = "Photo capture succeeded: $savedUri"
+                    Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, message)
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    Log.e(TAG, "Photo capture failed: ${exception.message}", exception)
+                }
+            }
+        )
     }
 
     private fun startCamera() {
@@ -54,7 +87,9 @@ class MainActivity : AppCompatActivity() {
             val preview = Preview.Builder()
                 .build()
                 // setSurfaceProvider는 어떤 함수인지 찾아봐야겠다
-                .also { it.setSurfaceProvider { binding.previewMain.surfaceProvider } }
+                .also { it.setSurfaceProvider(binding.previewMain.surfaceProvider) }
+
+            imageCapture = ImageCapture.Builder().build()
 
             // 일단 후면 카메라 선택해
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -62,7 +97,7 @@ class MainActivity : AppCompatActivity() {
             runCatching {
                 // Unbind use cases before rebinding
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
             }.onFailure { Log.e(TAG, "Use case binding failed", it) }
         }, ContextCompat.getMainExecutor(this))
     }
